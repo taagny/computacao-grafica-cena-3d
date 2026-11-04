@@ -1,4 +1,3 @@
-import numpy as np
 from OpenGL.GL import (
     GL_COLOR_BUFFER_BIT,
     GL_DEPTH_BUFFER_BIT,
@@ -16,7 +15,6 @@ from OpenGL.GL import (
     glViewport,
 )
 
-from core.matrix import Matrix
 from core.opengl_utils import OpenGLUtils
 from core.uniform import Uniform
 
@@ -67,35 +65,23 @@ class Renderer:
             "u_color",
             glGetUniformLocation(self.program, "u_color"),
         )
-        self.view_matrix = Matrix.look_at(
-            eye=np.array([2.6, 2.0, 3.8], dtype=np.float32),
-            target=np.array([0.0, 0.0, 0.0], dtype=np.float32),
-            up=np.array([0.0, 1.0, 0.0], dtype=np.float32),
-        )
         self.resize(width, height)
 
         glEnable(GL_DEPTH_TEST)
         glUseProgram(self.program)
-        self.view_uniform.set_matrix4(self.view_matrix)
 
     def resize(self, width: int, height: int) -> None:
         self.width = max(width, 1)
         self.height = max(height, 1)
         glViewport(0, 0, self.width, self.height)
-        projection_matrix = Matrix.perspective(
-            field_of_view=0.82,
-            aspect_ratio=self.width / self.height,
-            near=0.1,
-            far=100.0,
-        )
-        glUseProgram(self.program)
-        self.projection_uniform.set_matrix4(projection_matrix)
 
-    def render(self, scene) -> None:
+    def render(self, scene, camera) -> None:
         glClearColor(*scene.background, 1.0)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         glUseProgram(self.program)
-        self.view_uniform.set_matrix4(self.view_matrix)
+        aspect_ratio = self.width / self.height
+        self.view_uniform.set_matrix4(camera.view_matrix())
+        self.projection_uniform.set_matrix4(camera.projection_matrix(aspect_ratio))
 
         for obj, world_matrix in scene.iter_objects():
             position_attribute = obj.attributes.get("a_position")
