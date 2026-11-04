@@ -31,7 +31,7 @@ def main() -> int:
             pygame.OPENGL | pygame.DOUBLEBUF | pygame.RESIZABLE,
         )
         pygame.display.set_caption(
-            "Cena 3D - Etapa 7 | WASD move, R reinicia, P pausa"
+            "Cena 3D - Etapa 8 | WASD move, R reinicia, P pausa"
         )
 
         renderer = Renderer(width, height)
@@ -178,7 +178,7 @@ def main() -> int:
                         state_machine.reset()
                         paused = False
                         pygame.display.set_caption(
-                            f"Cena 3D - Etapa 7 | {state_machine.label} | R reinicia, P pausa"
+                            f"Cena 3D - Etapa 8 | {state_machine.label} | R reinicia, P pausa"
                         )
                         print(f"Sequencia reiniciada: {state_machine.label}.")
                 elif event.type == pygame.VIDEORESIZE:
@@ -190,7 +190,7 @@ def main() -> int:
             state_machine.update(animation_delta_time)
             if state_machine.state is not previous_state:
                 pygame.display.set_caption(
-                    f"Cena 3D - Etapa 7 | {state_machine.label} | R reinicia, P pausa"
+                    f"Cena 3D - Etapa 8 | {state_machine.label} | R reinicia, P pausa"
                 )
                 print(state_machine.label)
             scene.update(animation_delta_time)

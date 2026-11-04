@@ -74,6 +74,26 @@ class Matrix:
         return matrix
 
     @staticmethod
+    def orthographic(
+        left: float,
+        right: float,
+        bottom: float,
+        top: float,
+        near: float,
+        far: float,
+    ) -> np.ndarray:
+        if right == left or top == bottom or far == near:
+            raise ValueError("Os limites da projecao ortografica devem ser diferentes.")
+        matrix = Matrix.identity()
+        matrix[0, 0] = 2.0 / (right - left)
+        matrix[1, 1] = 2.0 / (top - bottom)
+        matrix[2, 2] = -2.0 / (far - near)
+        matrix[0, 3] = -(right + left) / (right - left)
+        matrix[1, 3] = -(top + bottom) / (top - bottom)
+        matrix[2, 3] = -(far + near) / (far - near)
+        return matrix
+
+    @staticmethod
     def look_at(
         eye: np.ndarray,
         target: np.ndarray,
