@@ -3,11 +3,13 @@ import sys
 import numpy as np
 import pygame
 
-from core import Renderer, Scene
 from camera import Camera, MovementRig
+from core import Renderer, Scene
+from core.light import DirectionalLight
 from core.texture import Texture
 from environment import create_lunar_texture
 from geometries import Box, Plane, Sphere
+from materials import LambertMaterial, PhongMaterial
 
 
 def main() -> int:
@@ -27,11 +29,18 @@ def main() -> int:
             pygame.OPENGL | pygame.DOUBLEBUF | pygame.RESIZABLE,
         )
         pygame.display.set_caption(
-            "Cena 3D - Etapa 3 | WASD move, setas giram, P pausa"
+            "Cena 3D - Etapa 4 | WASD move, setas giram, P pausa"
         )
 
         renderer = Renderer(width, height)
-        scene = Scene(background=(0.025, 0.045, 0.11))
+        scene = Scene(
+            background=(0.025, 0.045, 0.11),
+            directional_light=DirectionalLight(
+                direction=(-0.55, -1.0, -0.35),
+                color=(1.0, 0.88, 0.72),
+                ambient_strength=0.28,
+            ),
+        )
 
         lunar_texture = Texture(create_lunar_texture())
         floor = Plane(
@@ -40,6 +49,7 @@ def main() -> int:
             color=(1.0, 1.0, 1.0),
             texture=lunar_texture,
             uv_tiles=(8.0, 8.0),
+            material=LambertMaterial(),
         )
         floor.position[1] = -0.22
         scene.add(floor)
@@ -47,6 +57,7 @@ def main() -> int:
         platform_base = Box(
             dimensions=(4.8, 0.35, 4.8),
             color=(0.18, 0.22, 0.29),
+            material=LambertMaterial(),
         )
         platform_base.position = np.array([0.0, 0.0, 0.0], dtype=np.float32)
         scene.add(platform_base)
@@ -54,6 +65,7 @@ def main() -> int:
         platform_top = Box(
             dimensions=(4.2, 0.12, 4.2),
             color=(0.46, 0.52, 0.59),
+            material=PhongMaterial(shininess=20.0),
         )
         platform_top.position = np.array([0.0, 0.235, 0.0], dtype=np.float32)
         scene.add(platform_top)
@@ -62,6 +74,10 @@ def main() -> int:
             support = Box(
                 dimensions=(0.18, 1.25, 0.18),
                 color=(0.72, 0.73, 0.70),
+                material=PhongMaterial(
+                    specular_color=(0.48, 0.48, 0.48),
+                    shininess=48.0,
+                ),
             )
             support.position = np.array(
                 [x_position, 0.88, 0.0],
@@ -72,6 +88,7 @@ def main() -> int:
         control_stand = Box(
             dimensions=(1.2, 1.1, 0.8),
             color=(0.20, 0.25, 0.32),
+            material=LambertMaterial(),
         )
         control_stand.position = np.array([-4.4, 0.35, 1.8], dtype=np.float32)
         scene.add(control_stand)
@@ -79,6 +96,10 @@ def main() -> int:
         control_screen = Box(
             dimensions=(1.05, 0.62, 0.08),
             color=(0.10, 0.58, 0.73),
+            material=PhongMaterial(
+                specular_color=(0.35, 0.65, 0.72),
+                shininess=64.0,
+            ),
         )
         control_screen.position = np.array([-4.4, 1.1, 1.39], dtype=np.float32)
         control_screen.rotation[0] = -0.18
@@ -92,6 +113,10 @@ def main() -> int:
                 segments=12,
                 rings=8,
                 color=indicator_color,
+                material=PhongMaterial(
+                    specular_color=(0.5, 0.5, 0.5),
+                    shininess=40.0,
+                ),
             )
             indicator.position = np.array(
                 [-4.72 + index * 0.3, 0.76, 1.35],

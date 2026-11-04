@@ -1,5 +1,5 @@
 import numpy as np
-from OpenGL.GL import glUniform1i, glUniform3f, glUniformMatrix4fv
+from OpenGL.GL import glUniform1f, glUniform1i, glUniform3f, glUniformMatrix4fv
 
 
 class Uniform:
@@ -15,3 +15,6 @@ class Uniform:
 
     def set_int(self, value: int) -> None:
         glUniform1i(self.location, value)
+
+    def set_float(self, value: float) -> None:
+        glUniform1f(self.location, value)
