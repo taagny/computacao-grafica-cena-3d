@@ -2,6 +2,7 @@ import math
 
 import numpy as np
 
+from core.texture import Texture
 from geometries.base import Geometry
 from materials.base import Material
 
@@ -10,9 +11,10 @@ def create_cone_mesh(
     radius: float,
     height: float,
     segments: int,
-) -> tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     vertices = []
     normals = []
+    uvs = []
     half_height = height / 2.0
     apex = (0.0, half_height, 0.0)
     side_length = math.sqrt(radius * radius + height * height)
@@ -23,6 +25,16 @@ def create_cone_mesh(
         base_b = (radius * math.cos(angle_b), -half_height, radius * math.sin(angle_b))
         vertices.extend((base_a, apex, base_b))
         vertices.extend(((0.0, -half_height, 0.0), base_a, base_b))
+        u_a = index / segments
+        u_b = (index + 1) / segments
+        uvs.extend(((u_a, 0.0), ((u_a + u_b) * 0.5, 1.0), (u_b, 0.0)))
+        uvs.extend(
+            (
+                (0.5, 0.5),
+                (0.5 + 0.5 * math.cos(angle_a), 0.5 + 0.5 * math.sin(angle_a)),
+                (0.5 + 0.5 * math.cos(angle_b), 0.5 + 0.5 * math.sin(angle_b)),
+            )
+        )
         normal_a = (
             height * math.cos(angle_a) / side_length,
             radius / side_length,
@@ -40,6 +52,7 @@ def create_cone_mesh(
     return (
         np.asarray(vertices, dtype=np.float32),
         np.asarray(normals, dtype=np.float32),
+        np.asarray(uvs, dtype=np.float32),
     )
 
 
@@ -58,9 +71,17 @@ class Cone(Geometry):
         height: float = 1.0,
         segments: int = 24,
         color: tuple[float, float, float] = (0.8, 0.8, 0.8),
+        texture: Texture | None = None,
         material: Material | None = None,
     ) -> None:
         if radius <= 0.0 or height <= 0.0 or segments < 3:
             raise ValueError("O cone precisa de raio/altura positivos e 3 segmentos.")
-        vertices, normals = create_cone_mesh(radius, height, segments)
-        super().__init__(vertices, color, normals=normals, material=material)
+        vertices, normals, uvs = create_cone_mesh(radius, height, segments)
+        super().__init__(
+            vertices,
+            color,
+            uvs=uvs,
+            texture=texture,
+            normals=normals,
+            material=material,
+        )

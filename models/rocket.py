@@ -3,6 +3,8 @@ import numpy as np
 from core.object3d import Object3D
 from geometries import Box, Cone, Cylinder, Sphere
 from materials import PhongMaterial
+from core.texture import Texture
+from environment import create_flame_texture
 
 
 class Rocket(Object3D):
@@ -129,7 +131,7 @@ class Rocket(Object3D):
             radius=0.38,
             height=0.9,
             segments=24,
-            color=(1.0, 0.42, 0.06),
+            texture=Texture(create_flame_texture()),
             material=PhongMaterial(
                 specular_color=(1.0, 0.75, 0.25),
                 shininess=24.0,
