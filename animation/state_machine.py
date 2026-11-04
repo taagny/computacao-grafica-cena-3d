@@ -35,6 +35,9 @@ class StateMachine:
         self.astronaut = astronaut
         self._rocket_start_position = rocket.position.copy()
         self._astronaut_start_position = astronaut.position.copy()
+        self.state = AnimationState.WAITING
+        self.state_time = 0.0
+        self.elapsed_time = 0.0
         self.reset()
 
     @property
@@ -63,7 +66,9 @@ class StateMachine:
 
         remaining_time = delta_time
         while remaining_time > 0.0 and self.state is not AnimationState.COMPLETE:
-            duration = self.STATE_DURATIONS[self.state]
+            duration = self.STATE_DURATIONS.get(self.state)
+            if duration is None:
+                break
             available_time = duration - self.state_time
             step = min(remaining_time, available_time)
 
