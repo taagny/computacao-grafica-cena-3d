@@ -9,9 +9,8 @@ controlada por uma máquina de estados.
 
 Preencha com os nomes completos e, se necessário, as matrículas:
 
-- [Nome do integrante 1]
-- [Nome do integrante 2]
-- [Nome do integrante 3]
+- Taagny Augusto 
+- Gustavo Aliani
 
 ## Temas do trabalho
 
@@ -137,9 +136,3 @@ desenvolvimento, incluindo sugestões de implementação, análise de erros,
 revisão de código e preparação de documentação. O código foi integrado e
 testado no projeto. Os integrantes devem revisar o resultado e ajustar esta
 declaração para refletir fielmente o uso feito e as regras da disciplina.
-
-## Apresentação
-
-O roteiro de apresentação de aproximadamente 10 minutos, incluindo explicação
-técnica e perguntas prováveis do professor, está em
-[`ROTEIRO_APRESENTACAO.md`](ROTEIRO_APRESENTACAO.md).
