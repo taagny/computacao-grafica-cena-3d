@@ -3,6 +3,7 @@ import numpy as np
 from core.attribute import Attribute
 from core.base import Base
 from core.matrix import Matrix
+from core.texture import Texture
 
 
 class Object3D(Base):
@@ -10,11 +11,13 @@ class Object3D(Base):
         self,
         attributes: dict[str, Attribute] | None = None,
         color: tuple[float, float, float] = (1.0, 1.0, 1.0),
+        texture: Texture | None = None,
     ) -> None:
         self.position = np.zeros(3, dtype=np.float32)
         self.rotation = np.zeros(3, dtype=np.float32)
         self.scale = np.ones(3, dtype=np.float32)
         self.color = color
+        self.texture = texture
         self.attributes = attributes or {}
         self.children: list[Object3D] = []
         self.parent: Object3D | None = None
@@ -69,5 +72,8 @@ class Object3D(Base):
             child.dispose()
         for attribute in self.attributes.values():
             attribute.dispose()
+        if self.texture is not None:
+            self.texture.dispose()
+            self.texture = None
         self.children.clear()
         self.attributes.clear()

@@ -5,17 +5,9 @@ import pygame
 
 from core import Renderer, Scene
 from camera import Camera, MovementRig
-from geometries import Box, Cone, Cylinder, Plane, Sphere
-
-
-class RotatingBox(Box):
-    def __init__(self) -> None:
-        super().__init__(dimensions=(1.1, 1.2, 1.1), color=(0.18, 0.62, 0.95))
-        self.rotation_velocity = np.array([0.55, 0.85, 0.25], dtype=np.float32)
-
-    def update(self, delta_time: float) -> None:
-        self.rotation += self.rotation_velocity * delta_time
-        super().update(delta_time)
+from core.texture import Texture
+from environment import create_lunar_texture
+from geometries import Box, Plane, Sphere
 
 
 def main() -> int:
@@ -35,55 +27,102 @@ def main() -> int:
             pygame.OPENGL | pygame.DOUBLEBUF | pygame.RESIZABLE,
         )
         pygame.display.set_caption(
-            "Cena 3D - Etapa 2 | WASD move, setas giram, P pausa"
+            "Cena 3D - Etapa 3 | WASD move, setas giram, P pausa"
         )
 
         renderer = Renderer(width, height)
-        scene = Scene(background=(0.035, 0.055, 0.12))
-        floor = Plane(width=18.0, depth=14.0, color=(0.20, 0.24, 0.32))
-        floor.position[1] = -0.72
+        scene = Scene(background=(0.025, 0.045, 0.11))
+
+        lunar_texture = Texture(create_lunar_texture())
+        floor = Plane(
+            width=24.0,
+            depth=22.0,
+            color=(1.0, 1.0, 1.0),
+            texture=lunar_texture,
+            uv_tiles=(8.0, 8.0),
+        )
+        floor.position[1] = -0.22
         scene.add(floor)
 
-        box = RotatingBox()
-        box.position = np.array([-3.0, 0.0, 0.0], dtype=np.float32)
-        scene.add(box)
-
-        cylinder = Cylinder(
-            radius=0.62,
-            height=1.5,
-            segments=32,
-            color=(0.95, 0.48, 0.16),
+        platform_base = Box(
+            dimensions=(4.8, 0.35, 4.8),
+            color=(0.18, 0.22, 0.29),
         )
-        cylinder.position = np.array([-1.5, 0.03, 0.0], dtype=np.float32)
-        scene.add(cylinder)
+        platform_base.position = np.array([0.0, 0.0, 0.0], dtype=np.float32)
+        scene.add(platform_base)
 
-        sphere = Sphere(radius=0.72, segments=24, rings=16, color=(0.28, 0.82, 0.55))
-        sphere.position = np.array([0.0, 0.0, 0.0], dtype=np.float32)
-        scene.add(sphere)
-
-        cone = Cone(radius=0.7, height=1.6, segments=32, color=(0.92, 0.28, 0.36))
-        cone.position = np.array([1.7, 0.08, 0.0], dtype=np.float32)
-        scene.add(cone)
-
-        second_box = Box(
-            dimensions=(1.2, 1.2, 1.2),
-            color=(0.94, 0.78, 0.24),
+        platform_top = Box(
+            dimensions=(4.2, 0.12, 4.2),
+            color=(0.46, 0.52, 0.59),
         )
-        second_box.position = np.array([3.5, 0.0, 0.0], dtype=np.float32)
-        scene.add(second_box)
+        platform_top.position = np.array([0.0, 0.235, 0.0], dtype=np.float32)
+        scene.add(platform_top)
+
+        for x_position in (-1.75, 1.75):
+            support = Box(
+                dimensions=(0.18, 1.25, 0.18),
+                color=(0.72, 0.73, 0.70),
+            )
+            support.position = np.array(
+                [x_position, 0.88, 0.0],
+                dtype=np.float32,
+            )
+            scene.add(support)
+
+        control_stand = Box(
+            dimensions=(1.2, 1.1, 0.8),
+            color=(0.20, 0.25, 0.32),
+        )
+        control_stand.position = np.array([-4.4, 0.35, 1.8], dtype=np.float32)
+        scene.add(control_stand)
+
+        control_screen = Box(
+            dimensions=(1.05, 0.62, 0.08),
+            color=(0.10, 0.58, 0.73),
+        )
+        control_screen.position = np.array([-4.4, 1.1, 1.39], dtype=np.float32)
+        control_screen.rotation[0] = -0.18
+        scene.add(control_screen)
+
+        for index, indicator_color in enumerate(
+            ((0.15, 0.85, 0.35), (0.95, 0.72, 0.12), (0.9, 0.18, 0.12))
+        ):
+            indicator = Sphere(
+                radius=0.09,
+                segments=12,
+                rings=8,
+                color=indicator_color,
+            )
+            indicator.position = np.array(
+                [-4.72 + index * 0.3, 0.76, 1.35],
+                dtype=np.float32,
+            )
+            scene.add(indicator)
+
+        for x_position in (-1.7, 1.7):
+            for z_position in (-1.7, 1.7):
+                pad_marker = Box(
+                    dimensions=(0.12, 0.03, 0.12),
+                    color=(0.95, 0.58, 0.12),
+                )
+                pad_marker.position = np.array(
+                    [x_position, 0.31, z_position],
+                    dtype=np.float32,
+                )
+                scene.add(pad_marker)
 
         movement_rig = MovementRig(move_speed=4.0, turn_speed=1.5)
-        movement_rig.rotation[0] = 0.22
+        movement_rig.position = np.array([0.0, 3.2, 10.5], dtype=np.float32)
+        movement_rig.rotation[0] = -0.23
         camera = Camera(field_of_view=0.82, near=0.1, far=100.0)
-        camera.position = np.array([0.0, 2.0, 9.0], dtype=np.float32)
         movement_rig.add(camera)
 
         clock = pygame.time.Clock()
         running = True
         paused = False
         print(
-            "Controles: W/S frente/tras; A/D esquerda/direita; "
-            "Q/E desce/sobe; setas giram; P pausa; ESC fecha."
+            "Cenario lunar: WASD move; Q/E desce/sobe; setas giram; "
+            "P pausa; ESC fecha."
         )
 
         while running:
