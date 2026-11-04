@@ -10,6 +10,7 @@ from core.texture import Texture
 from environment import create_lunar_texture
 from geometries import Box, Plane, Sphere
 from materials import LambertMaterial, PhongMaterial
+from models import Rocket
 
 
 def main() -> int:
@@ -29,7 +30,7 @@ def main() -> int:
             pygame.OPENGL | pygame.DOUBLEBUF | pygame.RESIZABLE,
         )
         pygame.display.set_caption(
-            "Cena 3D - Etapa 4 | WASD move, setas giram, P pausa"
+            "Cena 3D - Etapa 5 | WASD move, 1/2 suportes, 3/4 chama"
         )
 
         renderer = Renderer(width, height)
@@ -136,6 +137,10 @@ def main() -> int:
                 )
                 scene.add(pad_marker)
 
+        rocket = Rocket()
+        rocket.position = np.array([0.0, 0.30, 0.0], dtype=np.float32)
+        scene.add(rocket)
+
         movement_rig = MovementRig(move_speed=4.0, turn_speed=1.5)
         movement_rig.position = np.array([0.0, 3.2, 10.5], dtype=np.float32)
         movement_rig.rotation[0] = -0.23
@@ -147,6 +152,7 @@ def main() -> int:
         paused = False
         print(
             "Cenario lunar: WASD move; Q/E desce/sobe; setas giram; "
+            "1/2 articulam suportes; 3/4 ajustam chama; "
             "P pausa; ESC fecha."
         )
 
@@ -163,6 +169,14 @@ def main() -> int:
                         paused = not paused
                         status = "pausada" if paused else "retomada"
                         print(f"Animacao {status}.")
+                    elif event.key == pygame.K_1:
+                        rocket.adjust_support_angle(-0.1)
+                    elif event.key == pygame.K_2:
+                        rocket.adjust_support_angle(0.1)
+                    elif event.key == pygame.K_3:
+                        rocket.adjust_flame_scale(-0.1)
+                    elif event.key == pygame.K_4:
+                        rocket.adjust_flame_scale(0.1)
                 elif event.type == pygame.VIDEORESIZE:
                     width, height = max(event.w, 1), max(event.h, 1)
                     renderer.resize(width, height)
