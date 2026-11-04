@@ -4,13 +4,14 @@ import numpy as np
 import pygame
 
 from camera import Camera, MovementRig
+from animation import StateMachine
 from core import Renderer, Scene
 from core.light import DirectionalLight
 from core.texture import Texture
 from environment import create_lunar_texture
 from geometries import Box, Plane, Sphere
 from materials import LambertMaterial, PhongMaterial
-from models import Rocket
+from models import Astronaut, Rocket
 
 
 def main() -> int:
@@ -30,7 +31,7 @@ def main() -> int:
             pygame.OPENGL | pygame.DOUBLEBUF | pygame.RESIZABLE,
         )
         pygame.display.set_caption(
-            "Cena 3D - Etapa 5 | WASD move, 1/2 suportes, 3/4 chama"
+            "Cena 3D - Etapa 7 | WASD move, R reinicia, P pausa"
         )
 
         renderer = Renderer(width, height)
@@ -141,6 +142,11 @@ def main() -> int:
         rocket.position = np.array([0.0, 0.30, 0.0], dtype=np.float32)
         scene.add(rocket)
 
+        astronaut = Astronaut()
+        astronaut.position = np.array([3.25, -0.2, 1.2], dtype=np.float32)
+        scene.add(astronaut)
+        state_machine = StateMachine(rocket, astronaut)
+
         movement_rig = MovementRig(move_speed=4.0, turn_speed=1.5)
         movement_rig.position = np.array([0.0, 3.2, 10.5], dtype=np.float32)
         movement_rig.rotation[0] = -0.23
@@ -151,9 +157,8 @@ def main() -> int:
         running = True
         paused = False
         print(
-            "Cenario lunar: WASD move; Q/E desce/sobe; setas giram; "
-            "1/2 articulam suportes; 3/4 ajustam chama; "
-            "P pausa; ESC fecha."
+            f"Animacao: {state_machine.label}. "
+            "R reinicia; P pausa; WASD/QE movem a camera; ESC fecha."
         )
 
         while running:
@@ -169,19 +174,25 @@ def main() -> int:
                         paused = not paused
                         status = "pausada" if paused else "retomada"
                         print(f"Animacao {status}.")
-                    elif event.key == pygame.K_1:
-                        rocket.adjust_support_angle(-0.1)
-                    elif event.key == pygame.K_2:
-                        rocket.adjust_support_angle(0.1)
-                    elif event.key == pygame.K_3:
-                        rocket.adjust_flame_scale(-0.1)
-                    elif event.key == pygame.K_4:
-                        rocket.adjust_flame_scale(0.1)
+                    elif event.key == pygame.K_r:
+                        state_machine.reset()
+                        paused = False
+                        pygame.display.set_caption(
+                            f"Cena 3D - Etapa 7 | {state_machine.label} | R reinicia, P pausa"
+                        )
+                        print(f"Sequencia reiniciada: {state_machine.label}.")
                 elif event.type == pygame.VIDEORESIZE:
                     width, height = max(event.w, 1), max(event.h, 1)
                     renderer.resize(width, height)
 
             animation_delta_time = 0.0 if paused else real_delta_time
+            previous_state = state_machine.state
+            state_machine.update(animation_delta_time)
+            if state_machine.state is not previous_state:
+                pygame.display.set_caption(
+                    f"Cena 3D - Etapa 7 | {state_machine.label} | R reinicia, P pausa"
+                )
+                print(state_machine.label)
             scene.update(animation_delta_time)
             movement_rig.update(real_delta_time, pygame.key.get_pressed())
             renderer.render(scene, camera)
