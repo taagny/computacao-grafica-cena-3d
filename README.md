@@ -182,12 +182,12 @@ O comando requer contexto OpenGL mesmo com janela oculta e salva doze capturas e
 
 ## Contribuições individuais e uso de inteligência artificial
 
-| Integrante | Contribuição informada |
-|---|---|
-| Taagny Augusto | Desenvolvimento da cena, integração, modelagem, animação, ambiente, interface, adaptações do framework, verificações e documentação, com apoio de IA |
-| Gustavo Aliani | Identificado como integrante da entrega; não foram informadas contribuições individuais |
+| Integrante | Responsabilidades | Situação |
+|---|---|---|
+| Taagny Augusto | Desenvolvimento da cena, integração, modelagem, animação, ambiente, interface, adaptações do framework, verificações e documentação, com apoio de IA | Desenvolvimento realizado |
+| Gustavo Aliani | Revisar a lógica de interação em `animation/mission.py`; conferir câmera, pausa e reinício; revisar a explicação de iluminação e shadow mapping; preparar a demonstração dos controles e a explicação desses recursos na apresentação | Atividades planejadas; realização ainda não confirmada |
 
-O desenvolvimento foi informado como realizado por Taagny. Não são atribuídas a Gustavo tarefas que não foram relatadas. A identificação de dois integrantes não substitui a exigência do enunciado de participação e domínio individual na apresentação.
+O desenvolvimento foi realizado por Taagny. A divisão acima organiza a participação de Gustavo na revisão e na apresentação; suas atividades devem ser concluídas e a situação atualizada antes da entrega. Ambos devem compreender a aplicação integrada e estar preparados para responder às perguntas individuais previstas no enunciado.
 
 **Ferramenta de IA:** Codex, da OpenAI. **Finalidade:** analisar o PDF fornecido, adaptar o projeto, desenvolver e revisar código, gerar imagens por programação, executar verificações e redigir documentação. **Trechos desenvolvidos ou revisados com esse apoio:** `main.py`, `animation/mission.py`, `models/rover.py`, `models/drone.py`, `models/primitives.py`, `environment/mars.py`, `geometries/torus.py`, `core/batching.py`, `core/hud.py`, `core/sky.py`, ajustes em `core/object3d.py`, `core/renderer.py` e `camera/movement_rig.py`, imagens em `assets/textures/` e este README. Os componentes de framework preservados vêm do projeto original recebido.
 
