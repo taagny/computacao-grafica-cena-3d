@@ -1,212 +1,180 @@
+"""ARES — Operação Horizonte. Run with .venv/Scripts/python main.py."""
+import argparse
+import math
 import sys
+import time
+from pathlib import Path
 
 import numpy as np
 import pygame
+from OpenGL import GL
+from PIL import Image
 
+from animation.mission import Mission
 from camera import Camera, MovementRig
-from animation import StateMachine
-from core import Renderer, Scene
-from core.light import DirectionalLight
-from core.texture import Texture
-from environment import create_lunar_texture
-from geometries import Box, Plane, Sphere
-from materials import LambertMaterial, PhongMaterial
-from models import Astronaut, Rocket
+from core import Renderer
+from core.hud import HUD
+from environment.mars import build_scene
+
+ROOT = Path(__file__).resolve().parent
 
 
-def main() -> int:
+def aim(rig, eye, target):
+    eye, target = np.array(eye, np.float32), np.array(target, np.float32)
+    direction = target - eye
+    rig.position = eye
+    rig.rotation[:] = (math.atan2(float(direction[1]), float(np.linalg.norm(direction[[0,2]]))),
+                       math.atan2(float(-direction[0]), float(-direction[2])), 0)
+
+
+def capture(path, width, height):
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    GL.glPixelStorei(GL.GL_PACK_ALIGNMENT, 1)
+    pixels = GL.glReadPixels(0,0,width,height,GL.GL_RGB,GL.GL_UNSIGNED_BYTE)
+    Image.frombytes("RGB",(width,height),pixels).transpose(Image.Transpose.FLIP_TOP_BOTTOM).save(path)
+    print(f"Captura: {path}")
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--verify",action="store_true",help="Renderiza fases da missão, salva evidências e encerra.")
+    parser.add_argument("--time",type=float,default=0,help="Inicia neste segundo da missão.")
+    parser.add_argument("--frames",type=int,default=0,help="Encerra após N quadros (diagnóstico).")
+    parser.add_argument("--hidden",action="store_true",help="Janela oculta para verificação automatizada.")
+    parser.add_argument("--view",choices=("1","2","3"),default="1",help="Vista inicial: geral, rover ou base.")
+    args = parser.parse_args(argv)
     pygame.init()
-    renderer = None
-    scene = None
-
+    renderer = scene = hud = None
     try:
-        pygame.display.gl_set_attribute(pygame.GL_CONTEXT_MAJOR_VERSION, 2)
-        pygame.display.gl_set_attribute(pygame.GL_CONTEXT_MINOR_VERSION, 1)
-        pygame.display.gl_set_attribute(pygame.GL_DOUBLEBUFFER, 1)
-        pygame.display.gl_set_attribute(pygame.GL_DEPTH_SIZE, 24)
-
-        width, height = 960, 640
-        pygame.display.set_mode(
-            (width, height),
-            pygame.OPENGL | pygame.DOUBLEBUF | pygame.RESIZABLE,
-        )
-        pygame.display.set_caption(
-            "Cena 3D - Etapa 9 | WASD move, R reinicia, P pausa"
-        )
-
-        renderer = Renderer(width, height)
-        scene = Scene(
-            background=(0.025, 0.045, 0.11),
-            directional_light=DirectionalLight(
-                direction=(-0.55, -1.0, -0.35),
-                color=(1.0, 0.88, 0.72),
-                ambient_strength=0.28,
-            ),
-        )
-
-        lunar_texture = Texture(create_lunar_texture())
-        floor = Plane(
-            width=24.0,
-            depth=22.0,
-            color=(1.0, 1.0, 1.0),
-            texture=lunar_texture,
-            uv_tiles=(8.0, 8.0),
-            material=LambertMaterial(),
-        )
-        floor.position[1] = -0.22
-        scene.add(floor)
-
-        platform_base = Box(
-            dimensions=(4.8, 0.35, 4.8),
-            color=(0.18, 0.22, 0.29),
-            material=LambertMaterial(),
-        )
-        platform_base.position = np.array([0.0, 0.0, 0.0], dtype=np.float32)
-        scene.add(platform_base)
-
-        platform_top = Box(
-            dimensions=(4.2, 0.12, 4.2),
-            color=(0.46, 0.52, 0.59),
-            material=PhongMaterial(shininess=20.0),
-        )
-        platform_top.position = np.array([0.0, 0.235, 0.0], dtype=np.float32)
-        scene.add(platform_top)
-
-        for x_position in (-1.75, 1.75):
-            support = Box(
-                dimensions=(0.18, 1.25, 0.18),
-                color=(0.72, 0.73, 0.70),
-                material=PhongMaterial(
-                    specular_color=(0.48, 0.48, 0.48),
-                    shininess=48.0,
-                ),
-            )
-            support.position = np.array(
-                [x_position, 0.88, 0.0],
-                dtype=np.float32,
-            )
-            scene.add(support)
-
-        control_stand = Box(
-            dimensions=(1.2, 1.1, 0.8),
-            color=(0.20, 0.25, 0.32),
-            material=LambertMaterial(),
-        )
-        control_stand.position = np.array([-4.4, 0.35, 1.8], dtype=np.float32)
-        scene.add(control_stand)
-
-        control_screen = Box(
-            dimensions=(1.05, 0.62, 0.08),
-            color=(0.10, 0.58, 0.73),
-            material=PhongMaterial(
-                specular_color=(0.35, 0.65, 0.72),
-                shininess=64.0,
-            ),
-        )
-        control_screen.position = np.array([-4.4, 1.1, 1.39], dtype=np.float32)
-        control_screen.rotation[0] = -0.18
-        scene.add(control_screen)
-
-        for index, indicator_color in enumerate(
-            ((0.15, 0.85, 0.35), (0.95, 0.72, 0.12), (0.9, 0.18, 0.12))
-        ):
-            indicator = Sphere(
-                radius=0.09,
-                segments=12,
-                rings=8,
-                color=indicator_color,
-                material=PhongMaterial(
-                    specular_color=(0.5, 0.5, 0.5),
-                    shininess=40.0,
-                ),
-            )
-            indicator.position = np.array(
-                [-4.72 + index * 0.3, 0.76, 1.35],
-                dtype=np.float32,
-            )
-            scene.add(indicator)
-
-        for x_position in (-1.7, 1.7):
-            for z_position in (-1.7, 1.7):
-                pad_marker = Box(
-                    dimensions=(0.12, 0.03, 0.12),
-                    color=(0.95, 0.58, 0.12),
-                )
-                pad_marker.position = np.array(
-                    [x_position, 0.31, z_position],
-                    dtype=np.float32,
-                )
-                scene.add(pad_marker)
-
-        rocket = Rocket()
-        rocket.position = np.array([0.0, 0.30, 0.0], dtype=np.float32)
-        scene.add(rocket)
-
-        astronaut = Astronaut()
-        astronaut.position = np.array([3.25, -0.2, 1.2], dtype=np.float32)
-        scene.add(astronaut)
-        state_machine = StateMachine(rocket, astronaut)
-
-        movement_rig = MovementRig(move_speed=4.0, turn_speed=1.5)
-        movement_rig.position = np.array([0.0, 3.2, 10.5], dtype=np.float32)
-        movement_rig.rotation[0] = -0.23
-        camera = Camera(field_of_view=0.82, near=0.1, far=100.0)
-        movement_rig.add(camera)
-
+        pygame.display.gl_set_attribute(pygame.GL_CONTEXT_MAJOR_VERSION,2)
+        pygame.display.gl_set_attribute(pygame.GL_CONTEXT_MINOR_VERSION,1)
+        pygame.display.gl_set_attribute(pygame.GL_DOUBLEBUFFER,1)
+        pygame.display.gl_set_attribute(pygame.GL_DEPTH_SIZE,24)
+        pygame.display.gl_set_attribute(pygame.GL_MULTISAMPLEBUFFERS,1)
+        pygame.display.gl_set_attribute(pygame.GL_MULTISAMPLESAMPLES,4)
+        width,height = 1440,900
+        flags = pygame.OPENGL | pygame.DOUBLEBUF | pygame.RESIZABLE
+        if args.hidden:
+            flags |= pygame.HIDDEN
+        try:
+            pygame.display.set_mode((width,height),flags)
+        except pygame.error:
+            # Keep the application usable on drivers without multisampling.
+            pygame.display.gl_set_attribute(pygame.GL_MULTISAMPLEBUFFERS,0)
+            pygame.display.gl_set_attribute(pygame.GL_MULTISAMPLESAMPLES,0)
+            pygame.display.set_mode((width,height),flags)
+        pygame.display.set_caption("ARES — Operação Horizonte | Taagny Augusto e Gustavo Aliani")
+        print("GPU:",GL.glGetString(GL.GL_RENDERER).decode())
+        print("OpenGL:",GL.glGetString(GL.GL_VERSION).decode())
+        renderer = Renderer(width,height)
+        scene,rover,drone = build_scene()
+        mission = Mission(rover,drone)
+        mission.update(args.time)
+        hud = HUD()
+        rig = MovementRig(move_speed=6,turn_speed=1.1)
+        camera = Camera(field_of_view=.78,far=160)
+        rig.add(camera)
+        aim(rig,(12,7.5,17),(-.6,1,-2.0))
         clock = pygame.time.Clock()
-        running = True
-        paused = False
-        print(
-            f"Animacao: {state_machine.label}. "
-            "R reinicia; P pausa; WASD/QE movem a camera; ESC fecha."
-        )
-
+        paused,orbital,running = False,False,True
+        camera_name = "geral"
+        if args.view == "2":
+            camera_name = "rover"; aim(rig,(-10,4.5,-7),(-3.2,1.3,0))
+        elif args.view == "3":
+            camera_name = "base"; aim(rig,(11,5,6),(2.3,1,-4))
+        frames = 0
+        view_time = 0.0
+        started = time.perf_counter()
+        checks = iter(((0,"1",True,False),(6,"1",True,False),(10.5,"1",True,False),
+                       (16,"1",True,False),(21,"1",True,False),(26,"1",True,False),
+                       (31.5,"1",True,False),(34,"1",True,False),
+                       (16,"2",True,False),(16,"3",True,False),
+                       (16,"1",False,False),(16,"1",True,True)))
         while running:
-            real_delta_time = min(clock.tick(60) / 1000.0, 0.1)
-
+            dt = min(clock.tick(60)/1000,.1)
+            save = None
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
+                elif event.type == pygame.WINDOWSIZECHANGED:
+                    width,height = pygame.display.get_window_size()
+                    renderer.resize(width,height)
+                elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                    action = hud.click(event.pos)
+                    if action == "pause": paused = not paused
+                    elif action == "restart": mission.reset(); paused = False
+                    elif action == "help": hud.help = not hud.help
+                    hud.last_update = -1000
                 elif event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_ESCAPE:
-                        running = False
-                    elif event.key == pygame.K_p:
-                        paused = not paused
-                        status = "pausada" if paused else "retomada"
-                        print(f"Animacao {status}.")
-                    elif event.key == pygame.K_r:
-                        state_machine.reset()
-                        paused = False
-                        pygame.display.set_caption(
-                            f"Cena 3D - Etapa 9 | {state_machine.label} | R reinicia, P pausa"
-                        )
-                        print(f"Sequencia reiniciada: {state_machine.label}.")
-                elif event.type == pygame.VIDEORESIZE:
-                    width, height = max(event.w, 1), max(event.h, 1)
-                    renderer.resize(width, height)
-
-            animation_delta_time = 0.0 if paused else real_delta_time
-            previous_state = state_machine.state
-            state_machine.update(animation_delta_time)
-            if state_machine.state is not previous_state:
-                pygame.display.set_caption(
-                    f"Cena 3D - Etapa 9 | {state_machine.label} | R reinicia, P pausa"
-                )
-                print(state_machine.label)
-            scene.update(animation_delta_time)
-            movement_rig.update(real_delta_time, pygame.key.get_pressed())
-            renderer.render(scene, camera)
+                    if event.key == pygame.K_ESCAPE: running = False
+                    elif event.key in (pygame.K_p,pygame.K_SPACE): paused = not paused
+                    elif event.key == pygame.K_r: mission.reset(); paused = False
+                    elif event.key == pygame.K_h: hud.help = not hud.help
+                    elif event.key == pygame.K_l: renderer.shadows_enabled = not renderer.shadows_enabled
+                    elif event.key == pygame.K_c: orbital = not orbital; camera_name = "orbital" if orbital else "livre"
+                    elif event.key == pygame.K_1:
+                        orbital = False; camera_name = "geral"; aim(rig,(12,7.5,17),(-.6,1,-2.0))
+                    elif event.key == pygame.K_2:
+                        orbital = False; camera_name = "rover"; aim(rig,(-10,4.5,-7),(-3.2,1.3,0))
+                    elif event.key == pygame.K_3:
+                        orbital = False; camera_name = "base"; aim(rig,(11,5,6),(2.3,1,-4))
+                    elif event.key == pygame.K_F12:
+                        save = ROOT/"artifacts"/f"ares-{pygame.time.get_ticks()}.png"
+                    hud.last_update = -1000
+            keys = pygame.key.get_pressed()
+            if any(keys[k] for k in (pygame.K_w,pygame.K_a,pygame.K_s,pygame.K_d,pygame.K_q,pygame.K_e,
+                                     pygame.K_UP,pygame.K_DOWN,pygame.K_LEFT,pygame.K_RIGHT)):
+                orbital = False; camera_name = "livre"
+            if args.verify:
+                try:
+                    sample,view,shadows,help_open = next(checks)
+                except StopIteration:
+                    break
+                mission.reset(); mission.update(sample)
+                paused = True
+                renderer.shadows_enabled = shadows
+                hud.help = help_open
+                if view == "1": aim(rig,(12,7.5,17),(-.6,1,-2)); camera_name = "geral"
+                elif view == "2": aim(rig,(-10,4.5,-7),(-3.2,1.3,0)); camera_name = "rover"
+                elif view == "3": aim(rig,(11,5,6),(2.3,1,-4)); camera_name = "base"
+                suffix = "-sem-sombras" if not shadows else ("-ajuda" if help_open else "")
+                save = ROOT/"artifacts"/f"verify-{sample:04.1f}-cam{view}{suffix}.png"
+                hud.last_update = -1000
+            else:
+                mission.update(0 if paused else dt)
+            view_time += dt
+            if orbital:
+                a = .55 + view_time*.09
+                aim(rig,(23*math.sin(a),10,23*math.cos(a)),(-.5,1,-2))
+            rig.move_speed = 12 if keys[pygame.K_LSHIFT] or keys[pygame.K_RSHIFT] else 6
+            rig.update(dt,keys)
+            scene.mission_time = mission.time
+            scene.scanning = mission.index == 3
+            renderer.render(scene,camera)
+            hud.draw(width,height,mission,paused,clock.get_fps(),camera_name)
+            if save:
+                capture(save,width,height)
+            error = GL.glGetError()
+            if error != GL.GL_NO_ERROR:
+                raise RuntimeError(f"Erro OpenGL: {error}")
             pygame.display.flip()
-
+            frames += 1
+            if args.frames and frames>=args.frames:
+                break
+        elapsed = time.perf_counter()-started
+        print(f"OK: {frames} quadros; {frames/max(elapsed,.001):.1f} FPS médios; "
+              f"missão {mission.time:.1f}s; {mission.label}.")
         return 0
     except Exception as error:
-        print(f"Erro ao executar a cena: {error}", file=sys.stderr)
+        import traceback
+        traceback.print_exc()
+        print(f"Não foi possível executar ARES: {error}",file=sys.stderr)
         return 1
     finally:
-        if scene is not None:
-            scene.dispose()
-        if renderer is not None:
-            renderer.dispose()
+        if hud is not None: hud.dispose()
+        if scene is not None: scene.dispose()
+        if renderer is not None: renderer.dispose()
         pygame.quit()
 
 

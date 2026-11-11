@@ -27,6 +27,7 @@ from core.matrix import Matrix
 from core.opengl_utils import OpenGLUtils
 from core.shadow_map import ShadowMap
 from core.uniform import Uniform
+from core.sky import Sky
 
 
 class Renderer:
@@ -84,6 +85,11 @@ class Renderer:
         uniform vec3 u_specular_color;
         uniform float u_ambient_strength;
         uniform float u_shininess;
+        uniform float u_emission;
+        uniform vec3 u_fog_color;
+        uniform int u_shadows_enabled;
+        uniform float u_scan;
+        uniform float u_time;
         uniform sampler2D u_shadow_map;
         uniform vec2 u_shadow_texel_size;
         varying vec2 v_uv;
@@ -92,6 +98,7 @@ class Renderer:
         varying vec4 v_light_space_position;
 
         float shadow_visibility(vec3 normal, vec3 light_direction) {
+            if (u_shadows_enabled == 0) return 1.0;
             vec3 projected = v_light_space_position.xyz / v_light_space_position.w;
             projected = projected * 0.5 + 0.5;
             if (projected.z > 1.0
@@ -136,8 +143,19 @@ class Renderer:
                 direct_lighting += u_specular_color * specular_strength;
             }
 
-            vec3 lighting = vec3(u_ambient_strength) + direct_lighting * visibility;
-            gl_FragColor = vec4(surface_color.rgb * lighting, surface_color.a);
+            // Warm key, cool sky fill and emissive equipment indicators.
+            vec3 sky_fill = vec3(0.10, 0.15, 0.21) * (normal.y * 0.5 + 0.5);
+            vec3 lighting = vec3(u_ambient_strength) + sky_fill + direct_lighting * visibility;
+            vec3 shaded = mix(surface_color.rgb * lighting, surface_color.rgb,
+                              clamp(u_emission, 0.0, 1.0));
+            // Procedural inspection band, evaluated in world space.
+            float scan_height = 0.3 + mod(u_time * 0.65, 2.7);
+            float band = 1.0 - smoothstep(0.025, 0.16,
+                                        abs(v_world_position.y - scan_height));
+            shaded = mix(shaded, vec3(0.16, 0.95, 1.0), band * u_scan * 0.8);
+            float distance_to_camera = length(u_camera_position - v_world_position);
+            float fog = 1.0 - exp(-0.00012 * distance_to_camera * distance_to_camera);
+            gl_FragColor = vec4(mix(shaded, u_fog_color, min(fog, 0.92)), surface_color.a);
         }
     """
 
@@ -153,6 +171,13 @@ class Renderer:
             self.SHADOW_FRAGMENT_SHADER,
         )
         self.shadow_map = ShadowMap(shadow_resolution)
+        self.emission_uniform = Uniform("u_emission", glGetUniformLocation(self.program, "u_emission"))
+        self.fog_uniform = Uniform("u_fog_color", glGetUniformLocation(self.program, "u_fog_color"))
+        self.shadows_enabled = True
+        self.sky = Sky()
+        self.shadows_uniform = Uniform("u_shadows_enabled", glGetUniformLocation(self.program, "u_shadows_enabled"))
+        self.scan_uniform = Uniform("u_scan", glGetUniformLocation(self.program, "u_scan"))
+        self.time_uniform = Uniform("u_time", glGetUniformLocation(self.program, "u_time"))
         self.position_location = glGetAttribLocation(self.program, "a_position")
         self.uv_location = glGetAttribLocation(self.program, "a_uv")
         self.normal_location = glGetAttribLocation(self.program, "a_normal")
@@ -279,7 +304,9 @@ class Renderer:
         glUseProgram(self.shadow_program)
         self.shadow_light_space_uniform.set_matrix4(light_space_matrix)
 
-        for obj, world_matrix in scene.iter_objects():
+        for obj, world_matrix in self._renderables:
+            if not obj.cast_shadow:
+                continue
             position_attribute = obj.attributes.get("a_position")
             if position_attribute is None:
                 continue
@@ -292,11 +319,17 @@ class Renderer:
         self.resize(self.width, self.height)
 
     def render(self, scene, camera) -> None:
+        self._renderables = [(obj, matrix) for obj, matrix in scene.iter_objects()
+                             if "a_position" in obj.attributes]
         light_space_matrix = self._light_space_matrix(scene.directional_light)
         self._render_shadow_depth(scene, light_space_matrix)
         glClearColor(*scene.background, 1.0)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        self.sky.render(camera, self.width / self.height)
         glUseProgram(self.program)
+        self.fog_uniform.set_vector3(scene.background)
+        self.shadows_uniform.set_int(int(self.shadows_enabled))
+        self.time_uniform.set_float(getattr(scene, "mission_time", 0.0))
         self.light_space_uniform.set_matrix4(light_space_matrix)
         self.shadow_texel_size_uniform.set_vector2(
             (
@@ -324,7 +357,7 @@ class Renderer:
         self.light_color_uniform.set_vector3(light.color)
         self.ambient_strength_uniform.set_float(light.ambient_strength)
 
-        for obj, world_matrix in scene.iter_objects():
+        for obj, world_matrix in self._renderables:
             position_attribute = obj.attributes.get("a_position")
             if position_attribute is None:
                 continue
@@ -349,6 +382,9 @@ class Renderer:
             ).T.astype(np.float32)
             self.normal_matrix_uniform.set_matrix4(normal_matrix)
             self.color_uniform.set_vector3(obj.color)
+            self.emission_uniform.set_float(obj.emission)
+            self.scan_uniform.set_float(float(getattr(scene, "scanning", False)
+                                               and getattr(obj, "scan_surface", False)))
             self.material_model_uniform.set_int(obj.material.model)
             self.specular_color_uniform.set_vector3(obj.material.specular_color)
             self.shininess_uniform.set_float(obj.material.shininess)
@@ -365,6 +401,7 @@ class Renderer:
         glActiveTexture(GL_TEXTURE0)
 
     def dispose(self) -> None:
+        self.sky.dispose()
         if self.shadow_map is not None:
             self.shadow_map.dispose()
         if self.program:

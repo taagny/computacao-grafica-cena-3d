@@ -1,3 +1,3 @@
-from environment.terrain import create_flame_texture, create_lunar_texture
+"""Mars research outpost and original procedural texture assets."""
 
-__all__ = ["create_flame_texture", "create_lunar_texture"]
+__all__ = []

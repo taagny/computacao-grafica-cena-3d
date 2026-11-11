@@ -1,0 +1,15 @@
+.venv/
+.cache/
+__pycache__/
+*.pyc
+.idea/
+artifacts/
+entrega/
+
+# Materiais locais de apoio; não integram a entrega solicitada.
+/docs/
+/tests/
+/scripts/
+/iniciar.bat
+/instalar.bat
+/requirements-lock.txt

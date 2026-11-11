@@ -1,4 +1,3 @@
-from models.astronaut import Astronaut
-from models.rocket import Rocket
+"""Articulated mission models. Import individual modules when constructing."""
 
-__all__ = ["Astronaut", "Rocket"]
+__all__ = []

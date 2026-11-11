@@ -48,7 +48,7 @@ class MovementRig(Object3D):
             float(keys[pygame.K_LEFT]) - float(keys[pygame.K_RIGHT])
         ) * self.turn_speed * delta_time
         self.rotation[0] += (
-            float(keys[pygame.K_DOWN]) - float(keys[pygame.K_UP])
+            float(keys[pygame.K_UP]) - float(keys[pygame.K_DOWN])
         ) * self.turn_speed * delta_time
         self.rotation[0] = np.clip(self.rotation[0], -1.4, 1.4)
         super().update(delta_time)

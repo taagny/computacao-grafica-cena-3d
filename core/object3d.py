@@ -25,6 +25,9 @@ class Object3D(Base):
         self.attributes = attributes or {}
         self.children: list[Object3D] = []
         self.parent: Object3D | None = None
+        self.visible = True
+        self.emission = 0.0
+        self.cast_shadow = True
 
     def add(self, child: "Object3D") -> None:
         if child is self or self._is_descendant_of(child):
@@ -60,6 +63,8 @@ class Object3D(Base):
         self,
         parent_matrix: np.ndarray | None = None,
     ):
+        if not self.visible:
+            return
         world_matrix = self.local_matrix()
         if parent_matrix is not None:
             world_matrix = parent_matrix @ world_matrix
